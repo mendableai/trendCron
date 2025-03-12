@@ -1,11 +1,10 @@
 import cron from 'node-cron';
 import { scrapeSources } from './services/scraper';
-import { analyzeTrends } from './services/trendAnalyzer';
-import { insertTrends } from './services/supabase';
+import { insertStories } from './services/supabase';
 import { config, validateConfig } from './utils/config';
 
 /**
- * Main function to execute the trend scraping and analysis
+ * Main function to execute the trend scraping and insertion
  */
 async function runTrendScraper(): Promise<void> {
   console.log('Starting trend scraping process...');
@@ -16,18 +15,13 @@ async function runTrendScraper(): Promise<void> {
     const stories = await scrapeSources(config.sources);
     console.log(`Found ${stories.length} stories from all sources`);
     
-    // 2. Analyze scraped stories to find trends
-    console.log('Analyzing stories for trends...');
-    const trends = analyzeTrends(stories);
-    console.log(`Identified ${trends.length} trends`);
-    
-    // 3. Insert trends into Supabase
-    if (trends.length > 0) {
-      console.log('Inserting trends into database...');
-      await insertTrends(trends);
-      console.log('Trends successfully inserted');
+    // 2. Insert stories directly into Supabase
+    if (stories.length > 0) {
+      console.log('Inserting stories into database...');
+      await insertStories(stories);
+      console.log('Stories successfully inserted');
     } else {
-      console.log('No trends to insert');
+      console.log('No stories to insert');
     }
     
     console.log('Trend scraping process completed successfully');

@@ -1,41 +1,18 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
+import { Story } from './scraper';
 
 dotenv.config();
-
-// Check if we're in development mode
-const isDevelopment = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
 
 // Initialize Supabase client
 const supabaseUrl = process.env.SUPABASE_URL || '';
 const supabaseKey = process.env.SUPABASE_KEY || '';
 
-// Define a type for our mock Supabase client
-interface SupabaseLike {
-  from: (table: string) => {
-    insert: (data: any) => Promise<{ error: null | Error }>;
-  };
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error('Missing Supabase credentials in environment variables');
 }
 
-let supabase: SupabaseClient | SupabaseLike;
-
-if (isDevelopment && (!supabaseUrl || !supabaseKey)) {
-  console.warn('Running in development mode with mock Supabase client');
-  // Create mock Supabase client for development
-  supabase = {
-    from: () => ({
-      insert: async () => {
-        console.log('Mock Supabase: Data would be inserted here in production');
-        return { error: null };
-      }
-    })
-  };
-} else {
-  if (!supabaseUrl || !supabaseKey) {
-    throw new Error('Missing Supabase credentials in environment variables');
-  }
-  supabase = createClient(supabaseUrl, supabaseKey);
-}
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Interface for trend data
 export interface Trend {
@@ -50,13 +27,8 @@ export interface Trend {
 export async function insertTrend(trend: Trend): Promise<void> {
   console.log('Inserting trend:', trend);
   
-  if (isDevelopment) {
-    console.log('Development mode: Trend would be inserted into Supabase');
-    return;
-  }
-  
   const { error } = await supabase
-    .from('trends')
+    .from('trending_topics')
     .insert({
       date: new Date().toISOString(),
       topic_title: trend.topic_title,
@@ -75,14 +47,6 @@ export async function insertTrend(trend: Trend): Promise<void> {
 export async function insertTrends(trends: Trend[]): Promise<void> {
   console.log(`Inserting ${trends.length} trends`);
   
-  if (isDevelopment) {
-    console.log('Development mode: Trends would be inserted into Supabase');
-    trends.forEach((trend, i) => {
-      console.log(`Trend ${i+1}:`, trend);
-    });
-    return;
-  }
-  
   const trendsWithDate = trends.map(trend => ({
     date: new Date().toISOString(),
     topic_title: trend.topic_title,
@@ -91,11 +55,33 @@ export async function insertTrends(trends: Trend[]): Promise<void> {
   }));
 
   const { error } = await supabase
-    .from('trends')
+    .from('trending_topics')
     .insert(trendsWithDate);
 
   if (error) {
     throw new Error(`Failed to insert trends: ${error.message}`);
+  }
+}
+
+/**
+ * Insert stories directly as trends into the trends table
+ */
+export async function insertStories(stories: Story[]): Promise<void> {
+  console.log(`Inserting ${stories.length} stories as trends`);
+  
+  const storiesAsTrends = stories.map(story => ({
+    date: new Date().toISOString(),
+    topic_title: story.headline,
+    topic_desc: `Source: ${story.link}`,
+    trend_score: 1 // Default score since we're not calculating trends
+  }));
+
+  const { error } = await supabase
+    .from('trending_topics')
+    .insert(storiesAsTrends);
+
+  if (error) {
+    throw new Error(`Failed to insert stories as trends: ${error.message}`);
   }
 }
 

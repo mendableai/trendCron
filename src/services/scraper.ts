@@ -4,52 +4,8 @@ import { z } from 'zod';
 
 dotenv.config();
 
-// Are we in development mode?
-const isDevelopment = process.env.NODE_ENV === 'development' || !process.env.NODE_ENV;
-
-// Define an interface for our FirecrawlApp
-interface FirecrawlAppLike {
-  extract: (
-    urls: string[],
-    options: any
-  ) => Promise<{
-    success: boolean;
-    data?: any;
-    error?: string;
-  }>;
-}
-
 // Initialize Firecrawl
-let app: FirecrawlAppLike;
-try {
-  app = new FirecrawlApp({ apiKey: process.env.FIRECRAWL_API_KEY || 'dummy_key' });
-} catch (error) {
-  if (isDevelopment) {
-    console.warn('Failed to initialize FirecrawlApp. Using mock implementation in development mode.');
-    // Mock implementation for development
-    app = {
-      extract: async () => ({
-        success: true,
-        data: {
-          stories: [
-            {
-              headline: 'Mock AI News Story 1',
-              link: 'https://example.com/story1',
-              date_posted: new Date().toISOString()
-            },
-            {
-              headline: 'Mock AI News Story 2',
-              link: 'https://example.com/story2',
-              date_posted: new Date().toISOString()
-            }
-          ]
-        }
-      })
-    };
-  } else {
-    throw error;
-  }
-}
+const app = new FirecrawlApp({ apiKey: process.env.FIRECRAWL_API_KEY });
 
 // Define the schema for our expected JSON
 const StorySchema = z.object({
@@ -106,17 +62,6 @@ export async function scrapeSources(
         const usernameMatch = source.match(/x\.com\/([^\/]+)/);
         if (!usernameMatch) continue;
         const username = usernameMatch[1];
-
-        // In development mode, use mock data
-        if (isDevelopment) {
-          console.log(`Using mock data for Twitter user: ${username}`);
-          combinedText.stories.push({
-            headline: `Mock tweet from ${username}: Exploring the latest in #AI and #MachineLearning trends today!`,
-            link: `https://x.com/${username}/status/1234567890`,
-            date_posted: tweetStartTime
-          });
-          continue;
-        }
 
         // Construct the query and API URL
         const query = `from:${username} has:media -is:retweet -is:reply`;
